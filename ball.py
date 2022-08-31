@@ -38,25 +38,28 @@ class Ball:
         new_position = self.pos() + (dt * self.vel())
         self._position = new_position
     
-    def time_to_collision(self, other):
-        "calculate time to collision between self and other"
-        r = self.pos() - other.pos()
-        v = self.vel() - other.vel()
-        R = self._radius + other.radius()
-        R_n = self._radius - other.radius()
+    def time_to_collide(self, other):
         
-        flag_overlapping = (r.dot(r) - R**2) < 0
+        r = other.pos() - self.pos()
+        r_mag = np.sqrt(np.dot(r,r))
+        r_dir = r/r_mag
         
-        if not flag_overlapping:
-            
-            col_t_1 = (-(np.dot(r,v))-np.sqrt((np.dot(r,v))**2 - np.dot(v,v)*(np.dot(r,r) - R**2)))/np.dot(v,v)
-            return col_t_1
-            
+        if(r_mag - self.radius() - other.radius()) < 0:
+            raise Exception("Balls are overlapping !")
+        
+        u1 = np.dot(self.vel(), r_dir)
+        u2 = np.dot(other.vel(), r_dir)
+        
+        if (u1-u2) > 0:
+            delta_t = (r_mag - self.radius() - other.radius())/(u1-u2)
+            return delta_t
         else:
-            raise RuntimeError(f"Ball found to be overlapping, unable to compute collision time between {self} and {other}")
+            return None
+        
             
     def collide(self, other):
         "update velcoities of both balls after collision"
+        
         r = other.pos() - self.pos()
         r_dir = r/np.linalg.norm(r)
         u1_parallel = np.dot(self.vel(), r_dir)*r_dir        
@@ -64,26 +67,33 @@ class Ball:
         
         u1_perpendicular = self.vel() - u1_parallel
         u2_perpendicular = self.vel() - u2_parallel
+
         
         v1_parallel = (u1_parallel*(self._mass - other.mass()) + 2*other.mass()*u2_parallel)/(self._mass + other.mass())
+ 
         
         v2_parallel = u1_parallel + v1_parallel - u2_parallel
+        
+        
         
         v1 = v1_parallel + u1_perpendicular
         v2 = v2_parallel + u2_perpendicular
         
+
         self.set_vel(v1)
         other.set_vel(v2)
-    
+        
     def collide_wall(self):
+        print("Colliding Wall")
         r = self.pos()
+        print(r)
         r_dir = r/np.linalg.norm(r)
         u1_parallel = np.dot(self.vel(), r_dir)*r_dir
         u1_perpendicular = self.vel() - u1_parallel
         
         v1 = u1_perpendicular - u1_parallel
-        
         self.set_vel(v1)
+        
     
     def __repr__(self):
         return "%s(mass=%g, radius=%g, pos=[%g, %g, %g], vel=[%g, %g, %g])" % ("Ball", self._mass, self._radius, self.pos()[0], self.pos()[1], self.pos()[2], self.vel()[0], self.vel()[1], self.vel()[2])

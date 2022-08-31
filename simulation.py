@@ -32,6 +32,7 @@ class Simulation:
             
             
         for frame in range(num_frames):
+            
             self.next_collision()
             
             
@@ -58,46 +59,65 @@ class Simulation:
         
         print(f"Current time is {self.time}")
         if self.check_next_collision:
+            collided_ball_ids = []
             for ball in self._ball_array:
+                r = ball.pos()
+                v = ball.vel()
+        
+                R = ball._radius - self._container_radius
                 
-                v_dot_r = np.dot(ball.vel(), ball.pos())
-                v_sqr = np.dot(ball.vel(), ball.vel())
-                r_sqr = np.dot(ball.pos(), ball.pos())
-                # Check collision of ball with container wall
+                r_dot_v = np.dot(r,v)
                 
-                ball_wall_collide_time = (-(v_dot_r) + np.sqrt(v_dot_r**2 - v_sqr*(r_sqr - self._container_radius**2)))/(v_sqr)
+                collision_flag = np.dot(v,v)*(np.dot(r,r) - R**2)
                 
-                if not np.isnan(ball_wall_collide_time) and ball_wall_collide_time > 0:
-                    # checks for valid time
-                    min_col_time.append([ball, None, ball_wall_collide_time])
+                delta_t = 0
+                
+                if collision_flag < 0:
+                    delta_t = (-r_dot_v + np.sqrt((r_dot_v)**2 - collision_flag))/np.dot(v,v)
+                    min_col_time.append([ball, None, delta_t])
+                else:
+                    continue
+                
+                    
                 
                 # Loops through all other balls and checks collision time
+                
                 for colliding_ball in self._ball_array:
-                    if id(ball) != id(colliding_ball):
-                        ball1_ball2_collide_time =  ball.time_to_collision(colliding_ball)
-                        if not np.isnan(ball1_ball2_collide_time) and ball1_ball2_collide_time > 0:
+                    
+                    if (id(ball) != id(colliding_ball)) and (id(colliding_ball) not in collided_ball_ids):
+                        ball1_ball2_collide_time =  ball.time_to_collide(colliding_ball)
+                        if ball1_ball2_collide_time is not None:
                             min_col_time.append([ball, colliding_ball, ball1_ball2_collide_time])
+                            
+                collided_ball_ids.append(id(ball))
     
             # orders collision times in ascending order
             min_col_time = np.array(min_col_time)
+           
+            min_col_time[:,2] =  min_col_time[:,2][str(min_col_time[:,2]) != 'nan']
             min_col_time = min_col_time[min_col_time[:, 2].argsort()]
             min_col_time[:,2] = self.dt*(min_col_time[:,2]//self.dt)
+            
             min_col_time_indices = np.where(min_col_time[:,2] == np.min(min_col_time[:,2]))[0]
             
             self.collision_codex = min_col_time[min_col_time_indices]
+            
+            
 
             self.next_collision_time = self.time + self.collision_codex[0][2]
-            
             #print(f"Next collision at {self.next_collision_time}")
             self.check_next_collision = False
-        
-        if self.next_collision_time >= self.time:
             
-            pl.pause(5)
+        
+        
+        if self.next_collision_time <= self.time:
             for col_codex in self.collision_codex:
+                print(col_codex)
                 if col_codex[1] is not None: 
+                    print("Colliding with Balls")
                     col_codex[0].collide(col_codex[1])
                 elif col_codex[1] is None:
+                    print("Colliding with Wall")
                     col_codex[0].collide_wall()
                 else:
                     raise Exception("Undefined collision sequence!")
